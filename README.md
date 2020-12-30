@@ -2,6 +2,8 @@
 
 This is a go command line utility drawing multiple sudokus on an A4 .pdf file. It leverages the `qqwing` sudoku generator.
 
+Licensed under the [ISC License](https://opensource.org/licenses/ISC).
+
 
 ## Usage
 ```
