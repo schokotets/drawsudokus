@@ -1,28 +1,59 @@
 package main
 
 import (
+	"errors"
 	"github.com/jung-kurt/gofpdf"
+	"flag"
 	"fmt"
 	"strings"
 	"time"
 	"os/exec"
 )
 
+type difficultyValue struct {
+	Difficulty *string
+}
+
+func (d difficultyValue) String() string {
+	if d.Difficulty != nil {
+		return *d.Difficulty
+	}
+	return "any"
+}
+
+func (d difficultyValue) Set(s string) error {
+	difficulty := strings.ToLower(s)
+	switch(difficulty) {
+		case "intermediate", "simple", "easy", "expert", "any":
+			*d.Difficulty = difficulty
+			return nil
+	}
+	return errors.New("invalid difficulty value")
+}
+
 func main () {
-	nx := 3
-	ny := 2
+	nxPtr := flag.Int("nx", 4, "number of sudokus put horizontally")
+	nyPtr := flag.Int("ny", 3, "number of sudokus put vertically")
+
+	difficulty := "any"
+	flag.Var(&difficultyValue{&difficulty}, "difficulty", "one of simple, easy, intermediate, expert, any")
+
+	flag.Parse()
+
+	nx := *nxPtr
+	ny := *nyPtr
 	n := nx * ny
 
-	fmt.Printf("Generating %d Sudokus in a %d x %d grid\n", n, nx, ny)
-	sudokus := generateSudokus(n)
+	fmt.Printf("Generating %d %s Sudokus in a %d x %d grid\n", n, difficulty, nx, ny)
+	sudokus := generateSudokus(n, difficulty)
 	timestamp := time.Now().Format("20060102-150405")
 
-	filename := fmt.Sprintf("sudokus/sudokus-%v-%dx%d-%s.pdf", timestamp, nx, ny, "intermediate")
+	filename := fmt.Sprintf("sudokus/sudokus-%v-%dx%d-%s.pdf", timestamp, nx, ny, difficulty)
 	createPDF(sudokus, timestamp, nx, ny, filename)
 }
 
-func generateSudokus(amount int) []string {
-	out, err := exec.Command("sh", "-c", fmt.Sprintf("qqwing --generate %d --one-line --difficulty intermediate", amount)).Output()
+func generateSudokus(amount int, difficulty string) []string {
+	out, err := exec.Command("sh", "-c", fmt.Sprintf("qqwing --generate %d --one-line --difficulty %s", amount, difficulty)).Output()
 	if err != nil {
 		fmt.Printf("Error: %v", err)
 		panic(err)
@@ -73,6 +104,7 @@ func createPDF(sudokus []string, timestamp string, nx, ny int, filename string) 
 
 	pdf.SetFont("Helvetica", "", fieldL*0.8*2.83) //2.83 points is a mm
 
+
 	for X := 0; X < nx; X++ {
 		for Y := 0; Y < ny; Y++ {
 
@@ -104,7 +136,7 @@ func createPDF(sudokus []string, timestamp string, nx, ny int, filename string) 
 			// draw numbers
 			for i := 0; i < 9; i++ {
 				for j := 0; j < 9; j++ {
-					n := sudokus[Y*3+X][i*9+j]
+					n := sudokus[Y*ny+X][i*9+j]
 					if string(n) != "." {
 						dy := fieldL/20
 						pdf.MoveTo(x0 + fieldL*float64(i), y0 + fieldL*float64(j) + dy)
@@ -123,6 +155,6 @@ func createPDF(sudokus []string, timestamp string, nx, ny int, filename string) 
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("Wrote sudokus to file %s successfully.\n", filename)
+		fmt.Printf("Wrote sudokus to file %s\n", filename)
 	}
 }
